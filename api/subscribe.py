@@ -83,12 +83,22 @@ class handler(BaseHTTPRequestHandler):
                 "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
             }
             
-            # Try to set only if not exists (atomic check-and-set)
+            # Upstash REST API SET command format:
+            # POST /set with body: {"key": "...", "value": "...", "ex": 2592000, "nx": true}
+            # The ex parameter should be in seconds, nx should be boolean
+            # But the error suggests wrong number of arguments - let's try without nx first
+            # and check if key exists manually, or use the correct Upstash format
+            
+            # Let's use the proper Upstash REST API format
+            # According to Upstash docs, the SET command takes: key, value, [EX seconds] [PX milliseconds] [NX|XX] [GET]
+            # In REST API, it might be: {"key": "k", "value": "v", "ex": 3600, "nx": true}
+            # Let's try with simpler parameters first
+            
             result = kv_request("POST", "/set", {
                 "key": key,
                 "value": json.dumps(signup_data),
-                "nx": True,  # Only set if key doesn't exist
-                "ex": 2592000  # 30 days TTL
+                "ex": 2592000,
+                "nx": True
             })
             
             # Upstash returns {"result": "OK"} on success
@@ -99,8 +109,8 @@ class handler(BaseHTTPRequestHandler):
                     "signup_id": key
                 })
             else:
-                # Key already exists (duplicate)
-                self._json_response(409, {"success": False, "error": "Email already subscribed"})
+                # Key already exists (duplicate) or other error
+                self._json_response(409, {"success": False, "error": "Email already subscribed", "kv_result": result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
