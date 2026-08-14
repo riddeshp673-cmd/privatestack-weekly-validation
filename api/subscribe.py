@@ -76,46 +76,70 @@ class handler(BaseHTTPRequestHandler):
             # Check for duplicate using KV SET with NX (only if not exists)
             key = f"signup:{email}"
             
-            # First, let's try to set a simple string to see if the REST API is working
-            # We'll use a test key that we can delete later, but for now let's just use the real key with a simple value
-            # If this works, then we know the issue is with our JSON value or the parameters.
+            # Let's try different formats for the SET command
+            # Format 1: Try with parameters as top-level fields (what we've been doing)
+            # Format 2: Try with parameters nested under "options" or similar
+            # Format 3: Try path-based: /set/key/value?ex=...&nx=true
             
-            # Try with a simple string value
-            simple_result = kv_request("POST", "/set", {
+            signup_data = {
+                "email": email,
+                "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "source": "landing_page",
+                "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
+            }
+            
+            # Try Format 1: Standard REST API with EX and NX as boolean/number
+            result = kv_request("POST", "/set", {
                 "key": key,
-                "value": "test-simple-value",
-                "ex": 2592000,
-                "nx": True
+                "value": json.dumps(signup_data),
+                "ex": 2592000,  # 30 days in seconds
+                "nx": True      # Only set if not exists
             })
             
-            if simple_result.get("result") == "OK":
-                # The simple string worked, so now we try with our JSON data
-                signup_data = {
-                    "email": email,
-                    "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-                    "source": "landing_page",
-                    "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
-                }
-                
-                result = kv_request("POST", "/set", {
-                    "key": key,
-                    "value": json.dumps(signup_data),
-                    "ex": 2592000,
-                    "nx": True
+            if result.get("result") == "OK":
+                self._json_response(200, {
+                    "success": True,
+                    "message": "Successfully subscribed",
+                    "signup_id": key
                 })
-                
-                if result.get("result") == "OK":
-                    self._json_response(200, {
-                        "success": True,
-                        "message": "Successfully subscribed",
-                        "signup_id": key
-                    })
-                else:
-                    # Key already exists (duplicate) or other error
-                    self._json_response(409, {"success": False, "error": "Email already subscribed", "kv_result": result})
             else:
-                # Even the simple string failed, so the issue is with the REST API call format or parameters
-                self._json_response(500, {"success": False, "error": "Storage unavailable", "simple_test_failed": True, "kv_result": simple_result})
+                # If that fails, let's check if key exists first, then set only if not exists
+                # Get the key first
+                try:
+                    get_result = kv_request("POST", "/get", {"key": key})
+                    if get_result.get("result") is not None:
+                        # Key exists
+                        self._json_response(409, {"success": False, "error": "Email already subscribed"})
+                    else:
+                        # Key doesn't exist, try to set without NX (should work if key doesn't exist)
+                        set_result = kv_request("POST", "/set", {
+                            "key": key,
+                            "value": json.dumps(signup_data),
+                            "ex": 2592000
+                        })
+                        if set_result.get("result") == "OK":
+                            self._json_response(200, {
+                                "success": True,
+                                "message": "Successfully subscribed",
+                                "signup_id": key
+                            })
+                        else:
+                            self._json_response(500, {"success": False, "error": "Failed to set key", "kv_result": set_result})
+                except Exception as get_error:
+                    # If get fails, assume key doesn't exist and try to set
+                    set_result = kv_request("POST", "/set", {
+                        "key": key,
+                        "value": json.dumps(signup_data),
+                        "ex": 2592000
+                    })
+                    if set_result.get("result") == "OK":
+                        self._json_response(200, {
+                            "success": True,
+                            "message": "Successfully subscribed",
+                            "signup_id": key
+                        })
+                    else:
+                        self._json_response(500, {"success": False, "error": "Storage unavailable", "get_error": str(get_error), "set_result": set_result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
