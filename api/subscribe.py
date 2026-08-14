@@ -73,73 +73,39 @@ class handler(BaseHTTPRequestHandler):
                 self._json_response(400, {"success": False, "error": "Invalid email format"})
                 return
             
-            # Check for duplicate using KV SET with NX (only if not exists)
+            # Check for duplicate using KV GET first
             key = f"signup:{email}"
             
-            # Let's try different formats for the SET command
-            # Format 1: Try with parameters as top-level fields (what we've been doing)
-            # Format 2: Try with parameters nested under "options" or similar
-            # Format 3: Try path-based: /set/key/value?ex=...&nx=true
+            # Try to get the key
+            get_result = kv_request("POST", "/get", {"key": key})
             
-            signup_data = {
-                "email": email,
-                "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-                "source": "landing_page",
-                "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
-            }
-            
-            # Try Format 1: Standard REST API with EX and NX as boolean/number
-            result = kv_request("POST", "/set", {
-                "key": key,
-                "value": json.dumps(signup_data),
-                "ex": 2592000,  # 30 days in seconds
-                "nx": True      # Only set if not exists
-            })
-            
-            if result.get("result") == "OK":
-                self._json_response(200, {
-                    "success": True,
-                    "message": "Successfully subscribed",
-                    "signup_id": key
-                })
+            # If get_result has a result (not None), then the key exists
+            if get_result.get("result") is not None:
+                self._json_response(409, {"success": False, "error": "Email already subscribed"})
             else:
-                # If that fails, let's check if key exists first, then set only if not exists
-                # Get the key first
-                try:
-                    get_result = kv_request("POST", "/get", {"key": key})
-                    if get_result.get("result") is not None:
-                        # Key exists
-                        self._json_response(409, {"success": False, "error": "Email already subscribed"})
-                    else:
-                        # Key doesn't exist, try to set without NX (should work if key doesn't exist)
-                        set_result = kv_request("POST", "/set", {
-                            "key": key,
-                            "value": json.dumps(signup_data),
-                            "ex": 2592000
-                        })
-                        if set_result.get("result") == "OK":
-                            self._json_response(200, {
-                                "success": True,
-                                "message": "Successfully subscribed",
-                                "signup_id": key
-                            })
-                        else:
-                            self._json_response(500, {"success": False, "error": "Failed to set key", "kv_result": set_result})
-                except Exception as get_error:
-                    # If get fails, assume key doesn't exist and try to set
-                    set_result = kv_request("POST", "/set", {
-                        "key": key,
-                        "value": json.dumps(signup_data),
-                        "ex": 2592000
+                # Key does not exist, now set it with expiration
+                signup_data = {
+                    "email": email,
+                    "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                    "source": "landing_page",
+                    "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
+                }
+                
+                # Set the key with expiration (30 days) but without nx (since we already checked)
+                set_result = kv_request("POST", "/set", {
+                    "key": key,
+                    "value": json.dumps(signup_data),
+                    "ex": 2592000  # 30 days in seconds
+                })
+                
+                if set_result.get("result") == "OK":
+                    self._json_response(200, {
+                        "success": True,
+                        "message": "Successfully subscribed",
+                        "signup_id": key
                     })
-                    if set_result.get("result") == "OK":
-                        self._json_response(200, {
-                            "success": True,
-                            "message": "Successfully subscribed",
-                            "signup_id": key
-                        })
-                    else:
-                        self._json_response(500, {"success": False, "error": "Storage unavailable", "get_error": str(get_error), "set_result": set_result})
+                else:
+                    self._json_response(500, {"success": False, "error": "Failed to set key", "kv_result": set_result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
