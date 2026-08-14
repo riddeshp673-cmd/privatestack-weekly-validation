@@ -6,23 +6,28 @@ import traceback
 from http.server import BaseHTTPRequestHandler
 
 # Vercel KV (Upstash Redis) REST API
+# The KV_URL is the base endpoint for the REST API (e.g., https://<instance-id>.upstash.io)
+# We send commands as JSON arrays: [ "command", "arg1", "arg2", ... ]
 KV_URL = os.environ.get("KV_REST_API_URL") or os.environ.get("KV_URL")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("KV_REST_API_READ_ONLY_TOKEN")
 
-def kv_request(method, path, body=None):
-    """Make request to Vercel KV REST API."""
+def kv_request(command, *args):
+    """Make request to Vercel KV REST API using command array format."""
     if not KV_URL or not KV_TOKEN:
         raise RuntimeError(f"KV env vars missing: KV_URL={bool(KV_URL)}, KV_TOKEN={bool(KV_TOKEN)}")
     
-    url = f"{KV_URL}{path}"
+    # Build the command array: [command, arg1, arg2, ...]
+    command_array = [command] + list(args)
+    
+    url = KV_URL  # The base URL is the endpoint
     headers = {
         "Authorization": f"Bearer {KV_TOKEN}",
         "Content-Type": "application/json"
     }
     
-    data = json.dumps(body).encode("utf-8") if body else None
+    data = json.dumps(command_array).encode("utf-8")
     
-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
     
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -30,7 +35,11 @@ def kv_request(method, path, body=None):
                 error_body = resp.read().decode()
                 raise RuntimeError(f"KV HTTP {resp.status}: {error_body}")
             response_data = resp.read().decode()
-            return json.loads(response_data) if response_data else {}
+            # The response is typically the result of the command
+            # For GET: returns the value or null
+            # For SET: returns "OK"
+            # For other commands, it depends.
+            return json.loads(response_data) if response_data else None
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise RuntimeError(f"KV HTTPError {e.code}: {error_body}")
@@ -73,10 +82,10 @@ class handler(BaseHTTPRequestHandler):
                 return
             
             # Check for duplicate using KV GET first
-            # Format: GET key -> { "key": "key" }
+            # Format: GET key -> returns value or null
             test_key = "test:connection"
             try:
-                get_result = kv_request("POST", "/get", {"key": test_key})
+                get_result = kv_request("GET", test_key)
                 # If we get here, the REST API is working
             except Exception as get_error:
                 # If GET fails, then the issue is with the connection or token
@@ -89,10 +98,10 @@ class handler(BaseHTTPRequestHandler):
             key = f"signup:{safe_email}"
             
             # Try to get the key
-            get_result = kv_request("POST", "/get", {"key": key})
+            get_result = kv_request("GET", key)
             
-            # If get_result has a result (not None), then the key exists
-            if get_result.get("result") is not None:
+            # If get_result is not None, then the key exists
+            if get_result is not None:
                 self._json_response(409, {"success": False, "error": "Email already subscribed", "get_result": get_result})
             else:
                 # Key does not exist, now set it with expiration and NX
@@ -104,24 +113,18 @@ class handler(BaseHTTPRequestHandler):
                 }
                 
                 # Set the key with value as JSON string, with expiration (30 days) and NX (only if not exists)
-                # Redis SET command: SET key value [EX seconds] [NX]
-                # As JSON object: { "key": "...", "value": "...", "ex": 2592000, "nx": true }
-                set_result = kv_request("POST", "/set", {
-                    "key": key,
-                    "value": json.dumps(signup_data),
-                    "ex": 2592000,
-                    "nx": True
-                })
+                # Redis SET command: SET key value EX seconds NX
+                set_result = kv_request("SET", key, json.dumps(signup_data), "EX", "2592000", "NX")
                 
-                # Upstash returns {"result": "OK"} on success
-                if set_result.get("result") == "OK":
+                # Upstash returns "OK" on success
+                if set_result == "OK":
                     self._json_response(200, {
                         "success": True,
                         "message": "Successfully subscribed",
                         "signup_id": key
                     })
                 else:
-                    # Key already exists (duplicate) or other error
+                    # If not OK, then the key already exists (since we used NX) or other error
                     self._json_response(409, {"success": False, "error": "Email already subscribed", "set_result": set_result})
         
         except json.JSONDecodeError as e:
