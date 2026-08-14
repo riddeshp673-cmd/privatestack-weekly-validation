@@ -76,41 +76,46 @@ class handler(BaseHTTPRequestHandler):
             # Check for duplicate using KV SET with NX (only if not exists)
             key = f"signup:{email}"
             
-            signup_data = {
-                "email": email,
-                "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-                "source": "landing_page",
-                "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
-            }
+            # First, let's try to set a simple string to see if the REST API is working
+            # We'll use a test key that we can delete later, but for now let's just use the real key with a simple value
+            # If this works, then we know the issue is with our JSON value or the parameters.
             
-            # Upstash REST API SET command format:
-            # POST /set with body: {"key": "...", "value": "...", "ex": 2592000, "nx": true}
-            # The ex parameter should be in seconds, nx should be boolean
-            # But the error suggests wrong number of arguments - let's try without nx first
-            # and check if key exists manually, or use the correct Upstash format
-            
-            # Let's use the proper Upstash REST API format
-            # According to Upstash docs, the SET command takes: key, value, [EX seconds] [PX milliseconds] [NX|XX] [GET]
-            # In REST API, it might be: {"key": "k", "value": "v", "ex": 3600, "nx": true}
-            # Let's try with simpler parameters first
-            
-            result = kv_request("POST", "/set", {
+            # Try with a simple string value
+            simple_result = kv_request("POST", "/set", {
                 "key": key,
-                "value": json.dumps(signup_data),
+                "value": "test-simple-value",
                 "ex": 2592000,
                 "nx": True
             })
             
-            # Upstash returns {"result": "OK"} on success
-            if result.get("result") == "OK":
-                self._json_response(200, {
-                    "success": True,
-                    "message": "Successfully subscribed",
-                    "signup_id": key
+            if simple_result.get("result") == "OK":
+                # The simple string worked, so now we try with our JSON data
+                signup_data = {
+                    "email": email,
+                    "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                    "source": "landing_page",
+                    "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
+                }
+                
+                result = kv_request("POST", "/set", {
+                    "key": key,
+                    "value": json.dumps(signup_data),
+                    "ex": 2592000,
+                    "nx": True
                 })
+                
+                if result.get("result") == "OK":
+                    self._json_response(200, {
+                        "success": True,
+                        "message": "Successfully subscribed",
+                        "signup_id": key
+                    })
+                else:
+                    # Key already exists (duplicate) or other error
+                    self._json_response(409, {"success": False, "error": "Email already subscribed", "kv_result": result})
             else:
-                # Key already exists (duplicate) or other error
-                self._json_response(409, {"success": False, "error": "Email already subscribed", "kv_result": result})
+                # Even the simple string failed, so the issue is with the REST API call format or parameters
+                self._json_response(500, {"success": False, "error": "Storage unavailable", "simple_test_failed": True, "kv_result": simple_result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
