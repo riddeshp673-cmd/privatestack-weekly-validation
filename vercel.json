@@ -2,15 +2,10 @@
   "buildCommand": "echo 'static site'",
   "outputDirectory": ".",
   "framework": null,
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    }
-  ],
   "functions": {
-    "api/*.py": {
-      "runtime": "python3.11"
+    "api/subscribe.py": {
+      "runtime": "python3.11",
+      "maxDuration": 30
     }
   }
 }
