@@ -79,9 +79,11 @@ class handler(BaseHTTPRequestHandler):
             # Try to get the key
             get_result = kv_request("POST", "/get", {"key": key})
             
-            # If get_result has a result (not None), then the key exists
+            # Debug: let's see what we got from GET
+            # For now, we'll just check if the result has a "result" key and it's not None
+            # But note: if the key doesn't exist, Upstash returns {"result": null}
             if get_result.get("result") is not None:
-                self._json_response(409, {"success": False, "error": "Email already subscribed"})
+                self._json_response(409, {"success": False, "error": "Email already subscribed", "get_result": get_result})
             else:
                 # Key does not exist, now set it with expiration
                 signup_data = {
@@ -91,21 +93,26 @@ class handler(BaseHTTPRequestHandler):
                     "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
                 }
                 
-                # Set the key with expiration (30 days) but without nx (since we already checked)
+                # Try setting the key with just key and value (no expiration) to see if that works
                 set_result = kv_request("POST", "/set", {
                     "key": key,
-                    "value": json.dumps(signup_data),
-                    "ex": 2592000  # 30 days in seconds
+                    "value": json.dumps(signup_data)
                 })
                 
                 if set_result.get("result") == "OK":
+                    # Now, let's try to set the expiration in a separate step? 
+                    # Or we can try to set with expiration in the same call by adding "ex": seconds
+                    # Let's try to set with expiration in a second call (PEXPIRE) if the first set worked.
+                    # But note: we want to avoid two calls if possible.
+                    # However, for now, let's just see if the basic set works.
                     self._json_response(200, {
                         "success": True,
-                        "message": "Successfully subscribed",
-                        "signup_id": key
+                        "message": "Successfully subscribed (basic set only)",
+                        "signup_id": key,
+                        "set_result": set_result
                     })
                 else:
-                    self._json_response(500, {"success": False, "error": "Failed to set key", "kv_result": set_result})
+                    self._json_response(500, {"success": False, "error": "Failed to set key", "set_result": set_result, "get_result": get_result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
