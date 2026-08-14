@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="PrivateStack Weekly - Curated newsletter of privacy-respecting self-hosted software releases and updates. Save hours discovering tools that respect your privacy.">
+    <title>PrivateStack Weekly - Privacy-Focused Self-Hosted Software Discovery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #059669;
+            --dark: #111827;
+            --dark-light: #1f2937;
+            --gray: #6b7280;
+            --gray-light: #f3f4f6;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --text: #1f2937;
+            --text-light: #6b7280;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--white);
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+        
+        /* Header */
+        header {
+            padding: 24px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            text-decoration: none;
+        }
+        
+        .logo span {
+            color: var(--primary);
+        }
+        
+        /* Hero Section */
+        .hero {
+            padding: 80px 0;
+            text-align: center;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: var(--primary);
+            color: var(--white);
+            padding: 6px 16px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.1;
+            color: var(--dark);
+            margin-bottom: 24px;
+        }
+        
+        h1 span {
+            color: var(--primary);
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--gray);
+            max-width: 600px;
+            margin: 0 auto 40px;
+        }
+        
+        /* Signup Form */
+        .signup-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 480px;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        .signup-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .signup-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        
+        .signup-header p {
+            color: var(--gray);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        
+        input[type="email"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        input[type="email"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        input[type="email"]::placeholder {
+            color: var(--gray-light);
+        }
+        
+        .btn-primary {
+            width: 100%;
+            background: var(--primary);
+            color: var(--white);
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-primary:disabled {
+            background: var(--gray);
+            cursor: not-allowed;
+        }
+        
+        .signup-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.875rem;
+            color: var(--gray);
+        }
+        
+        .signup-footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+        
+        .signup-footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Success State */
+        .success-state {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .success-state.show {
+            display: block;
+        }
+        
+        .success-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+        
+        .success-icon svg {
+            width: 32px;
+            height: 32px;
+            color: var(--white);
+        }
+        
+        .success-state h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        
+        .success-state p {
+            color: var(--gray);
+            margin-bottom: 16px;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background: var(--gray-light);
+        }
+        
+        .section-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 12px;
+        }
+        
+        .section-header p {
+            color: var(--gray);
+            font-size: 1.125rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 24px;
+        }
+        
+        .feature-card {
+            background: var(--white);
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+            color: var(--primary);
+        }
+        
+        .feature-card h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 8px;
+        }
+        
+        .feature-card p {
+            color: var(--gray);
+            font-size: 0.9375rem;
+        }
+        
+        /* Sample Content */
+        .sample {
+            padding: 80px 0;
+        }
+        
+        .sample-card {
+            background: var(--dark);
+            border-radius: 16px;
+            padding: 40px;
+            color: var(--white);
+        }
+        
+        .sample-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sample-badge {
+            background: var(--primary);
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .sample-date {
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+        
+        .sample-section {
+            margin-bottom: 24px;
+        }
+        
+        .sample-section h4 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+        
+        .sample-item {
+            padding: 16px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .sample-item h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .sample-item .meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.75rem;
+            color: var(--gray);
+            margin-bottom: 8px;
+        }
+        
+        .difficulty {
+            background: rgba(5, 150, 105, 0.2);
+            color: #6ee7b7;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .sample-item p {
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+        
+        /* FAQ */
+        .faq {
+            padding: 80px 0;
+            background: var(--gray-light);
+        }
+        
+        .faq-item {
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        
+        .faq-question {
+            width: 100%;
+            text-align: left;
+            padding: 20px 24px;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--dark);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .faq-answer {
+            padding: 0 24px 20px;
+            color: var(--gray);
+            display: none;
+        }
+        
+        .faq-item.open .faq-answer {
+            display: block;
+        }
+        
+        .faq-question svg {
+            transition: transform 0.2s;
+        }
+        
+        .faq-item.open .faq-question svg {
+            transform: rotate(180deg);
+        }
+        
+        /* Footer */
+        footer {
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--gray);
+            font-size: 0.875rem;
+        }
+        
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            margin: 0 8px;
+        }
+        
+        footer a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--dark);
+            color: var(--white);
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success {
+            background: var(--secondary);
+        }
+        
+        .toast.error {
+            background: #dc2626;
+        }
+        
+        /* Responsive */
+        @media (max-width: 640px) {
+            h1 {
+                font-size: 2.25rem;
+            }
+            
+            .hero {
+                padding: 60px 0;
+            }
+            
+            .signup-card {
+                padding: 24px;
+            }
+            
+            .features {
+                padding: 60px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="#" class="logo">Private<span>Stack</span> Weekly</a>
+        </div>
+    </header>
+    
+    <main>
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <span class="badge">Free 2-week trial · No credit card required</span>
+                <h1>Stop wasting hours searching for <span>privacy-respecting</span> self-hosted tools</h1>
+                <p class="hero-subtitle">Get a weekly curated newsletter of newly released/updated self-hosted software with privacy/security evaluations — so you can focus on building, not searching.</p>
+                
+                <div class="signup-card" id="signupCard">
+                    <div class="signup-header">
+                        <h2>Start your free trial</h2>
+                        <p>Join developers who trust curated discovery</p>
+                    </div>
+                    
+                    <form id="signupForm" novalidate>
+                        <div class="form-group">
+                            <label for="email">Email address</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                name="email" 
+                                placeholder="your@email.com" 
+                                required
+                                autocomplete="email"
+                            >
+                        </div>
+                        <button type="submit" class="btn-primary" id="submitBtn">
+                            Subscribe Free
+                        </button>
+                    </form>
+                    
+                    <div class="signup-footer">
+                        By subscribing, you agree to receive our weekly newsletter. 
+                        <a href="#">Privacy Policy</a> · 
+                        <a href="#">Unsubscribe anytime</a>
+                    </div>
+                </div>
+                
+                <div class="success-state" id="successState">
+                    <div class="success-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <h3>You're on the list!</h3>
+                    <p>Check your inbox for a confirmation email. Your first issue arrives this Friday.</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Features -->
+        <section class="features">
+            <div class="container">
+                <div class="section-header">
+                    <h2>What you get every Friday</h2>
+                    <p>Curated discoveries that respect your privacy and time</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </div>
+                        <h3>New & Updated Tools</h3>
+                        <p>Freshly released and significantly updated self-hosted software, curated from GitHub, security advisories, and community sources.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h3>Privacy & Security Focus</h3>
+                        <p>Every tool evaluated for data handling practices, encryption standards, metadata collection, and privacy-preserving architecture.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                        <h3>Implementation Difficulty</h3>
+                        <p>1-5 difficulty ratings so you know what you're getting into before investing time in setup and configuration.</p>
+                    </div>
+                    
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                        </div>
+                        <h3>Use-Case Matching</h3>
+                        <p>Tools categorized by common developer needs: analytics, monitoring, storage, communication, CI/CD, and more.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Sample Issue -->
+        <section class="sample">
+            <div class="container">
+                <div class="section-header">
+                    <h2>See a sample issue</h2>
+                    <p>This is what lands in your inbox every Friday</p>
+                </div>
+                
+                <div class="sample-card">
+                    <div class="sample-header">
+                        <span class="sample-badge">Issue #001</span>
+                        <span class="sample-date">August 16, 2026 · 8 min read</span>
+                    </div>
+                    
+                    <div class="sample-section">
+                        <h4>🔒 Privacy Tool Spotlight</h4>
+                        <div class="sample-item">
+                            <h5>Monalisa — Private, E2E encrypted messaging server</h5>
+                            <div class="meta">
+                                <span class="difficulty">Difficulty: 3/5</span>
+                                <span>Replaces: WhatsApp, Signal (self-hosted)</span>
+                            </div>
+                            <p>End-to-end encryption by default, no phone number required, minimal metadata retention. AGPLv3 with regular audits.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sample-section">
+                        <h4>🆕 New & Noteworthy</h4>
+                        <div class="sample-item">
+                            <h5>Plausible Analytics 1.4.0</h5>
+                            <div class="meta">
+                                <span class="difficulty">Difficulty: 1/5</span>
+                                <span>Privacy: Built-in bot filtering, CSP headers</span>
+                            </div>
+                            <p>Lightweight, privacy-focused web analytics. Major update adds bot filtering without compromising privacy.</p>
+                        </div>
+                        <div class="sample-item">
+                            <h5>Vikunja 0.23.0</h5>
+                            <div class="meta">
+                                <span class="difficulty">Difficulty: 2/5</span>
+                                <span>Privacy: LDAP over TLS, optional E2E encryption</span>
+                            </div>
+                            <p>Self-hosted Todo/Kanban. New security hardening against timing attacks.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sample-section">
+                        <h4>🔐 Security Update Roundup</h4>
+                        <div class="sample-item">
+                            <h5>Home Assistant Core 2026.8.1</h5>
+                            <div class="meta">
+                                <span>Priority: Update immediately if internet-exposed</span>
+                            </div>
+                            <p>Authentication bypass and information disclosure fixes. Protects your camera, lock, and alarm data.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="sample-section">
+                        <h4>📚 Migration Guide: Google Analytics → Plausible</h5>
+                        <div class="sample-item">
+                            <p>30-45 min migration. Export GA data → Docker-compose Plausible → Swap tracking script → Remove GA. Eliminates cross-site tracking of your visitors.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- FAQ -->
+        <section class="faq">
+            <div class="container">
+                <div class="section-header">
+                    <h2>Questions?</h2>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        How is this different from awesome-selfhosted?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        awesome-selfhosted is an excellent static list. PrivateStack Weekly adds regular weekly updates, privacy/security evaluations for each tool, implementation difficulty ratings, and use-case matching — all curated and delivered to your inbox.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        What does "privacy-focused" mean for the curation?
+                        <svg width="20" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        Every tool is evaluated for: data handling practices (what data is collected/stored), encryption standards (at rest, in transit), metadata collection (what's logged), auditability (open source, third-party audits), and alignment with privacy principles (no tracking, user data control).
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        How much time will this actually save me?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        Developers report spending 3-5 hours/week searching for and evaluating self-hosted tools. Our curation reduces that to ~10 minutes of reading per week — saving you 2-4 hours weekly.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        What happens after the free trial?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        After 2 weeks, you'll be invited to continue with a paid subscription ($10/month or $100/year). No automatic charges — you decide if the value is there. Cancel anytime during the trial with one click.
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFAQ(this)">
+                        Can I suggest tools for inclusion?
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+                    <div class="faq-answer">
+                        Absolutely! We welcome suggestions from subscribers. The best discoveries often come from the community itself. Just reply to any newsletter issue with your suggestion.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 PrivateStack Weekly. Built for privacy-conscious developers.</p>
+            <p>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms</a>
+                <a href="#">Contact</a>
+            </p>
+        </div>
+    </footer>
+    
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // Form handling
+        const form = document.getElementById('signupForm');
+        const emailInput = document.getElementById('email');
+        const submitBtn = document.getElementById('submitBtn');
+        const signupCard = document.getElementById('signupCard');
+        const successState = document.getElementById('successState');
+        const toast = document.getElementById('toast');
+        
+        // Email validation
+        function isValidEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+        
+        // Show toast notification
+        function showToast(message, type = 'success') {
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 4000);
+        }
+        
+        // Submit form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = emailInput.value.trim();
+            
+            if (!email || !isValidEmail(email)) {
+                showToast('Please enter a valid email address', 'error');
+                emailInput.focus();
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Subscribing...';
+            
+            try {
+                // Send to local tracking endpoint
+                const response = await fetch('/api/subscribe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Show success state
+                    signupCard.style.display = 'none';
+                    successState.classList.add('show');
+                    showToast('Successfully subscribed! Check your inbox for confirmation.');
+                } else {
+                    showToast(data.error || 'Something went wrong. Please try again.', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Subscribe Free';
+                }
+            } catch (error) {
+                console.error('Signup error:', error);
+                showToast('Network error. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Subscribe Free';
+            }
+        });
+        
+        // FAQ toggle
+        function toggleFAQ(button) {
+            const item = button.closest('.faq-item');
+            item.classList.toggle('open');
+        }
+        
+        // Keyboard support for FAQ
+        document.querySelectorAll('.faq-question').forEach(btn => {
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleFAQ(btn);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
