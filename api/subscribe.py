@@ -23,6 +23,11 @@ def kv_request(method, path, body=None):
     
     data = json.dumps(body).encode("utf-8") if body else None
     
+    # Debug: print what we're sending
+    print(f"DEBUG KV Request: {method} {url}")
+    print(f"DEBUG KV Headers: {headers}")
+    print(f"DEBUG KV Body: {data}")
+    
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     
     try:
@@ -31,11 +36,15 @@ def kv_request(method, path, body=None):
                 error_body = resp.read().decode()
                 raise RuntimeError(f"KV HTTP {resp.status}: {error_body}")
             response_data = resp.read().decode()
-            return json.loads(response_data) if response_data else {}
+            result = json.loads(response_data) if response_data else {}
+            print(f"DEBUG KV Response: {resp.status} {result}")
+            return result
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
+        print(f"DEBUG KV HTTPError: {e.code} {error_body}")
         raise RuntimeError(f"KV HTTPError {e.code}: {error_body}")
     except urllib.error.URLError as e:
+        print(f"DEBUG KV URLError: {e.reason}")
         raise RuntimeError(f"KV URLError: {e.reason}")
 
 def is_valid_email(email):
@@ -73,19 +82,36 @@ class handler(BaseHTTPRequestHandler):
                 self._json_response(400, {"success": False, "error": "Invalid email format"})
                 return
             
+            # First, test KV connection with a simple GET on a nonsense key
+            test_key = f"test:connection:{__import__('uuid').uuid4()}"
+            try:
+                get_result = kv_request("POST", "/get", {"key": test_key})
+                # If we get here, the REST API is working
+                print("DEBUG: KV connection test successful")
+            except Exception as get_error:
+                # If GET fails, then the issue is with the connection or token
+                print(f"DEBUG: KV connection test failed: {get_error}")
+                self._json_response(500, {"success": False, "error": "KV connection failed", "detail": str(get_error)})
+                return
+            
             # Check for duplicate using KV GET first
-            key = f"signup:{email}"
+            # Let's try a simple key format to see if the issue is with the key
+            # key = f"signup:{email}"  # Original
+            # Let's try replacing special characters in the email for the key
+            safe_email = email.replace("@", "_at_").replace(".", "_dot_")
+            key = f"signup:{safe_email}"
             
             # Try to get the key
             get_result = kv_request("POST", "/get", {"key": key})
             
-            # Debug: let's see what we got from GET
-            # For now, we'll just check if the result has a "result" key and it's not None
-            # But note: if the key doesn't exist, Upstash returns {"result": null}
+            # Debug the get result
+            print(f"DEBUG GET result for {key}: {get_result}")
+            
+            # If get_result has a result (not None), then the key exists
             if get_result.get("result") is not None:
                 self._json_response(409, {"success": False, "error": "Email already subscribed", "get_result": get_result})
             else:
-                # Key does not exist, now set it with expiration
+                # Key does not exist, now set it
                 signup_data = {
                     "email": email,
                     "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
@@ -94,25 +120,33 @@ class handler(BaseHTTPRequestHandler):
                 }
                 
                 # Try setting the key with just key and value (no expiration) to see if that works
+                # First, try with a simple string value to see if the issue is with the JSON
+                simple_value = "test-value"
                 set_result = kv_request("POST", "/set", {
                     "key": key,
-                    "value": json.dumps(signup_data)
+                    "value": simple_value
                 })
                 
+                print(f"DEBUG SET result (simple): {set_result}")
+                
                 if set_result.get("result") == "OK":
-                    # Now, let's try to set the expiration in a separate step? 
-                    # Or we can try to set with expiration in the same call by adding "ex": seconds
-                    # Let's try to set with expiration in a second call (PEXPIRE) if the first set worked.
-                    # But note: we want to avoid two calls if possible.
-                    # However, for now, let's just see if the basic set works.
-                    self._json_response(200, {
-                        "success": True,
-                        "message": "Successfully subscribed (basic set only)",
-                        "signup_id": key,
-                        "set_result": set_result
+                    # Now try with the JSON data
+                    set_result2 = kv_request("POST", "/set", {
+                        "key": key,
+                        "value": json.dumps(signup_data)
                     })
+                    print(f"DEBUG SET result (JSON): {set_result2}")
+                    
+                    if set_result2.get("result") == "OK":
+                        self._json_response(200, {
+                            "success": True,
+                            "message": "Successfully subscribed",
+                            "signup_id": key
+                        })
+                    else:
+                        self._json_response(500, {"success": False, "error": "Failed to set JSON key", "set_result_simple": set_result, "set_result_json": set_result2})
                 else:
-                    self._json_response(500, {"success": False, "error": "Failed to set key", "set_result": set_result, "get_result": get_result})
+                    self._json_response(500, {"success": False, "error": "Failed to set simple key", "set_result": set_result})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
@@ -122,6 +156,7 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             # Full traceback for debugging
             tb = traceback.format_exc()
+            print(f"DEBUG: Unexpected error: {tb}")
             self._json_response(500, {"success": False, "error": "Internal server error", "detail": str(e), "traceback": tb})
     
     def _json_response(self, status, data):
