@@ -1,13 +1,10 @@
 import json
 import os
-import re
 import urllib.request
 import traceback
 from http.server import BaseHTTPRequestHandler
 
 # Vercel KV (Upstash Redis) REST API
-# The KV_URL is the base endpoint for the REST API (e.g., https://<instance-id>.upstash.io)
-# We send commands as JSON arrays: [ "command", "arg1", "arg2", ... ]
 KV_URL = os.environ.get("KV_REST_API_URL") or os.environ.get("KV_URL")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN") or os.environ.get("KV_REST_API_READ_ONLY_TOKEN")
 
@@ -35,11 +32,14 @@ def kv_request(command, *args):
                 error_body = resp.read().decode()
                 raise RuntimeError(f"KV HTTP {resp.status}: {error_body}")
             response_data = resp.read().decode()
-            # The response is typically the result of the command
-            # For GET: returns the value or null
-            # For SET: returns "OK"
-            # For other commands, it depends.
-            return json.loads(response_data) if response_data else None
+            if not response_data:
+                return None
+            result = json.loads(response_data)
+            # Upstash returns a JSON object with a "result" field
+            if isinstance(result, dict) and "result" in result:
+                return result["result"]
+            # Fallback: return the whole result (should not happen)
+            return result
     except urllib.error.HTTPError as e:
         error_body = e.read().decode()
         raise RuntimeError(f"KV HTTPError {e.code}: {error_body}")
@@ -81,51 +81,34 @@ class handler(BaseHTTPRequestHandler):
                 self._json_response(400, {"success": False, "error": "Invalid email format"})
                 return
             
-            # Check for duplicate using KV GET first
-            # Format: GET key -> returns value or null
-            test_key = "test:connection"
-            try:
-                get_result = kv_request("GET", test_key)
-                # If we get here, the REST API is working
-            except Exception as get_error:
-                # If GET fails, then the issue is with the connection or token
-                self._json_response(500, {"success": False, "error": "KV connection failed", "detail": str(get_error)})
-                return
-            
-            # Check for duplicate using KV GET first
-            # Replace @ and . in email to make a safe key
+            # Create a safe key by replacing @ and . to avoid any potential issues
             safe_email = email.replace("@", "_at_").replace(".", "_dot_")
             key = f"signup:{safe_email}"
             
-            # Try to get the key
-            get_result = kv_request("GET", key)
+            # Prepare the signup data as JSON string
+            import datetime
+            signup_data = {
+                "email": email,
+                "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                "source": "landing_page",
+                "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
+            }
+            value_json = json.dumps(signup_data)
             
-            # If get_result is not None, then the key exists
-            if get_result is not None:
-                self._json_response(409, {"success": False, "error": "Email already subscribed", "get_result": get_result})
+            # Try to set the key with expiration (30 days) and NX (only if not exists)
+            set_result = kv_request("SET", key, value_json, "EX", "2592000", "NX")
+            
+            # Upstash returns "OK" on success (when NX and key didn't exist)
+            # Returns nil (None) if the key already exists (because of NX)
+            if set_result == "OK":
+                self._json_response(200, {
+                    "success": True,
+                    "message": "Successfully subscribed",
+                    "signup_id": key
+                })
             else:
-                # Key does not exist, now set it with expiration and NX
-                signup_data = {
-                    "email": email,
-                    "timestamp": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-                    "source": "landing_page",
-                    "experiment_id": "96f5a4c2-ebc8-4366-9893-8eb284c58eec"
-                }
-                
-                # Set the key with value as JSON string, with expiration (30 days) and NX (only if not exists)
-                # Redis SET command: SET key value EX seconds NX
-                set_result = kv_request("SET", key, json.dumps(signup_data), "EX", "2592000", "NX")
-                
-                # Upstash returns "OK" on success
-                if set_result == "OK":
-                    self._json_response(200, {
-                        "success": True,
-                        "message": "Successfully subscribed",
-                        "signup_id": key
-                    })
-                else:
-                    # If not OK, then the key already exists (since we used NX) or other error
-                    self._json_response(409, {"success": False, "error": "Email already subscribed", "set_result": set_result})
+                # Key already exists (since we used NX)
+                self._json_response(409, {"success": False, "error": "Email already subscribed"})
         
         except json.JSONDecodeError as e:
             self._json_response(400, {"success": False, "error": "Invalid JSON", "detail": str(e)})
