@@ -62,8 +62,13 @@ class handler(BaseHTTPRequestHandler):
                     if isinstance(key, bytes):
                         key = key.decode()
                     # Get the value for each key
-                    value = kv_request("GET", key)
-                    if value:
+                    value_raw = kv_request("GET", key)
+                    if value_raw:
+                        # value_raw is a JSON string, parse it
+                        try:
+                            value = json.loads(value_raw)
+                        except:
+                            value = {"raw": value_raw}
                         signups.append({
                             "key": key,
                             "data": value
